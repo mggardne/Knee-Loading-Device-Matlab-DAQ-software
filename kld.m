@@ -35,8 +35,8 @@
 %             2.  The loadcell calibration file, FT5071cal.mat, must be
 %             in the current directory or path.
 %
-%             3.  M-files countdown_clock.m and get_data.m must be in
-%             the current directory or path.
+%             3.  M-files cl.m, countdown_clock.m and get_data.m must
+%             be in the current directory or path.
 %
 %     16-Jul-2018 * Mack Gardner-Morse
 %
