@@ -40,6 +40,8 @@
 %
 %     16-Jul-2018 * Mack Gardner-Morse
 %
+%     09-Oct-2018 * Mack Gardner-Morse * New pressure calibration
+%
 
 %#######################################################################
 %
@@ -57,9 +59,16 @@ global fdata ftime idx
 ddir = 'Data';
 %
 % Conversion from Body Weight to Pressure
+% See press_cal1.xlsx
 %
-wt2psi = 4.44822/10.353;               % Full body weight
-wt2psi = wt2psi/2;      % Half body weight
+% wt2psi = 4.44822/10.353;               % Full body weight
+% wt2psi = wt2psi/2;      % Half body weight
+%
+% Conversion from Body Weight to Pressure
+% See press_cal3.xlsx
+%
+lbf2N = 4.448221615;    % N/lbf
+wt2psi = [0.0933  1.003];              % Coefficient and intercept
 %
 % Get Todays Date in DDMMMYYYY Format
 %
@@ -102,8 +111,13 @@ while ~ok
      end
 end
 %
-psi = wt2psi*wt;        % Target psi
+wth = wt*lbf2N/2;       % Half body weight in N
+psi = polyval(wt2psi,wth);             % Target psi
 psis = sprintf('%4.1f',psi);
+%
+uiwait(msgbox({['Please set pressure to ' psis ' psi for']; ...
+              '50% body weight compressive load.'}, ...
+              'Action Required','warn','modal'));
 %
 % Get Trial Number
 %
@@ -223,8 +237,9 @@ lh = s1.addlistener('DataAvailable', ...
 %
 % Acquire 12 minutes of Force Data
 %
-h = msgbox({['Set Pressure to ' psis ' psi']; ...
-       '   Click "OK" to Collect';'     12 minutes of Data'},'modal');
+h = msgbox({['      Is the pressure set to ' psis ' psi?']; ...
+           'Click "OK" to collect 12 minutes of data.'}, ...
+           'Collect Data?','warn','modal');
 ha = get(h,'CurrentAxes');
 hc = get(ha,'Child');
 set(hc,'FontSize',9.8,'FontWeight','bold');
@@ -243,7 +258,8 @@ fnam = ['subj' id '_exam' int2str(exam) '_trial' int2str(n) ...
         '_' dtxt '.mat'];
 fnamd = fullfile(ddir,fnam);           % Put in subdirectory
 %
-save(fnamd,'cal','dtxt','exam','fdata','ftime','id','n','wt', ...
-     'udata','utime','zdat','zdata','ztime');
+save(fnamd,'cal','dtxt','exam','fdata','ftime','id','lbf2N','psi' ...
+     'psis','n','wt','wt2psi','wth','udata','utime','zdat','zdata', ...
+     'ztime');
 %
 return
