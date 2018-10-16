@@ -41,6 +41,9 @@
 %
 %     01-Oct-2018 * Mack Gardner-Morse
 %
+%     15-Oct-2018 * Mack Gardner-Morse * Added table and writetable for
+%                                        Macs
+%
 
 %#######################################################################
 %
@@ -48,6 +51,10 @@
 %
 % prmpt = true;           % Prompts for all points
 prmpt = false;          % No prompts
+%
+% Set Calibration Distance
+%
+cal = 50.0;             % Calibration distance in mm
 %
 % Output MS_Excel Spreadsheet File Name
 %
@@ -62,22 +69,22 @@ hdr1 = {'File','Mrk X','Mrk Y','delta X','delta Y','Dist Mrk X', ...
        'Dist Mrk Y','Total Mrk X','Total Mrk Y','Origin X', ...
        'Origin Y','Rel X','Rel Y','del Rel X','del Rel Y', ...
        'Dist Rel X','Dist Rel Y','Stat X','Stat Y', ...
-       'Tot Rel X','Tot Rel Y'};
+       'Tot Rel X','Tot Rel_Y'};
 units = {'','(pixel)','(pixel)','(pixel)','(pixel)','(mm)','(mm)', ...
          '(mm)','(mm)','(pixel)','(pixel)','(pixel)','(pixel)', ...
-         '(pixel)','(pixel)', '(mm)','(mm)','(mm)','(mm)', ...
+         '(pixel)','(pixel)','(mm)','(mm)','(mm)','(mm)', ...
          '(mm)','(mm)'};
 %
 % Get Image File Names
 %
-[fnams,pnam] = uigetfile( { '*.jpe*;*.jpg*', ...
+[fnams,pnam] = uigetfile({'*.jpe*;*.jpg*', ...
              'JPEG image files (*.jpe*, *.jpg*)';
              '*.jpe*;*.jpg*;*.tif*;*.gif*;*.bmp*', ...
              'All image files (*.jpe*, *.jpg*, *.tif*, *.gif*, *.bmp*)';
              '*.*',  'All files (*.*)'},'Please Select Image Files', ...
              'MultiSelect', 'on');
 %
-if isequal(fnams,0);
+if isequal(fnams,0)
   return;
 end
 %
@@ -95,7 +102,7 @@ fullxlsnam = fullfile(pnam,xlsnam);
 %
 % Check for Output MS-Excel Spreadsheet and Get Sheet Name
 %
-if ~exist(fullxlsnam)
+if ~exist(fullxlsnam,'file')
   shtnam1 = [shtnam '0001'];
 else
   [~,fshtnams] = xlsfinfo(fullxlsnam);      % Get sheet names in file
@@ -137,6 +144,9 @@ hf1 = figure;
 orient landscape;
 set(hf1,'WindowState','maximized');
 drawnow;
+if ismac
+  uiwait(msgbox('Enter any key to continue.'));
+end
 pos = reshape(get(hf1,'Position'),2,2)';
 posh = floor(diff(pos)/2);             % Half size window
 posh = [pos(1,:)+posh posh];
@@ -153,7 +163,7 @@ figure(hf1);
 %
 % Loop through Files
 %
-for k = 1:nf;
+for k = 1:nf
 %
 % File Name
 %
@@ -170,11 +180,11 @@ for k = 1:nf;
 %
 % Get Image Calibration
 %
-  if k==1               % Only get magnification in first image
-    uiwait(msgbox(['Please pick two (2) points 50 mm apart on the ', ...
-           'scale.'],'Note'));
+   if k==1              % Only get magnification in first image
+     uiwait(msgbox(['Please pick two (2) points ', ...
+            sprintf('%.1f',cal) ' mm apart on the scale.'],'Note'));
 %
-     for l = 1:2;
+     for l = 1:2
         if prmpt
           uiwait(msgbox(mtxt{l},'Required Input'));
         else
@@ -187,7 +197,7 @@ for k = 1:nf;
         hs(l) = plot(psx(l),psy(l),'k+','MarkerSize',8,'LineWidth',1);
 %
         kans = logical(2-menu('Point OK?','No','Yes'));
-        while kans;
+        while kans
              figure(hf1);
              [psx(l),psy(l)] = ginput(1);
              set(hs(l),'XData',psx(l),'YData',psy(l));
@@ -199,21 +209,29 @@ for k = 1:nf;
 %
      ds = diff([psx psy]);             % Differences in scale points
      d = norm(ds);
-     imagn = 50.0/d;
+     imagn = cal/d;
 %
-% Write Calibration to Spreadsheet
+% Put Calibration into Four (4) Tables
 %
-     xlswrite(fullxlsnam,hdrc1,shtnam1,['A' int2str(irow+2)]);
-     xlswrite(fullxlsnam,[psx psy],shtnam1,['A' int2str(irow+3)]);
+     t0 = table(hdrc1);
+     t1 = table(psx,psy);
+     t2 = table(hdrc2);
+     t3 = table(ds);
+     t4 = table([d; imagn],'RowNames',{hdrc3{1}; hdrc4{1}});
 %
-     xlswrite(fullxlsnam,hdrc2,shtnam1,['A' int2str(irow+5)]);
-     xlswrite(fullxlsnam,ds,shtnam1,['A' int2str(irow+6)]);
+% Write Calibration Tables to Spreadsheet
 %
-     xlswrite(fullxlsnam,hdrc3,shtnam1,['A' int2str(irow+7)]);
-     xlswrite(fullxlsnam,d,shtnam1,['B' int2str(irow+7)]);
-%
-     xlswrite(fullxlsnam,hdrc4,shtnam1,['A' int2str(irow+8)]);
-     xlswrite(fullxlsnam,imagn,shtnam1,['B' int2str(irow+8)]);
+     writetable(t0,fullxlsnam,'Sheet',shtnam1,'Range',['A', ...
+                int2str(irow+2)],'WriteVariableNames',false)
+     writetable(t1,fullxlsnam,'Sheet',shtnam1,'Range',['A', ...
+                int2str(irow+3)],'WriteVariableNames',false)
+     writetable(t2,fullxlsnam,'Sheet',shtnam1,'Range',['A', ...
+                int2str(irow+5)],'WriteVariableNames',false)
+     writetable(t3,fullxlsnam,'Sheet',shtnam1,'Range',['A', ...
+                int2str(irow+6)],'WriteVariableNames',false)
+     writetable(t4,fullxlsnam,'Sheet',shtnam1,'Range',['A', ...
+                int2str(irow+7)],'WriteRowNames',true, ...
+                'WriteVariableNames',false)
 %
    end
 %
@@ -232,7 +250,7 @@ for k = 1:nf;
    hm = plot(pmx(k),pmy(k),'r+','MarkerSize',8,'LineWidth',1);
 %
    kans = logical(2-menu('Point OK?','No','Yes'));
-   while kans;
+   while kans
         figure(hf1);
         [pmx(k),pmy(k)] = ginput(1);
         set(hm,'XData',pmx(k),'YData',pmy(k));
@@ -262,7 +280,7 @@ for k = 1:nf;
             'origin of the coordinate system.'],'Note'));
    end
 %
-   for l = 1:1;
+   for l = 1:1
 %    for l = 1:3;
       if prmpt
         uiwait(msgbox(msgtxt{l},'Required Input'));
@@ -276,7 +294,7 @@ for k = 1:nf;
       hc(l) = plot(pcx(l,k),pcy(l,k),'r+','MarkerSize',8,'LineWidth',1);
 %
       kans = logical(2-menu('Point OK?','No','Yes'));
-      while kans;
+      while kans
            figure(hf1);
            [pcx(l,k),pcy(l,k)] = ginput(1);
            set(hc(l),'XData',pcx(l,k),'YData',pcy(l,k));
@@ -351,18 +369,43 @@ else
   distrc = NaN;
 end
 %
-% Write Points to Spreadsheet
+% Put Data into Tables
 %
-xlswrite(fullxlsnam,hdr1,shtnam1,['C' int2str(irow)]);
-xlswrite(fullxlsnam,fnams,shtnam1,['C' int2str(irow+1)]);
-xlswrite(fullxlsnam,[pmx pmy],shtnam1,['D' int2str(irow+1)]);
-xlswrite(fullxlsnam,[dm distm],shtnam1,['F' int2str(irow+2)]);
-xlswrite(fullxlsnam,tm,shtnam1,['J' int2str(irow+1)]);
+t0 = table(hdr1);
+tu = table(units);
 %
-xlswrite(fullxlsnam,[pcx pcy r],shtnam1,['L' int2str(irow+1)]);
-xlswrite(fullxlsnam,[dr distr],shtnam1,['P' int2str(irow+2)]);
-xlswrite(fullxlsnam,[distrm tr],shtnam1,['T' int2str(irow+1)]);
-xlswrite(fullxlsnam,[distrr; distrs; distrc],shtnam1, ...
-         ['T' int2str(irow+2)]);
+t1 = table(fnams);
+t2 = table(pmx,pmy);
+t3 = table(dm,distm);
+t4 = table(tm);
+t5 = table(pcx,pcy,r);
+t6 = table(dr,distr);
+t7 = table(distrm,tr);
+t8 = table([distrr; distrs; distrc]);
+%
+% Write Data Tables to Spreadsheet
+%
+writetable(t0,fullxlsnam,'Sheet',shtnam1,'Range',['C', ...
+           int2str(irow)],'WriteVariableNames',false);
+writetable(tu,fullxlsnam,'Sheet',shtnam1,'Range',['C', ...
+           int2str(irow+1)],'WriteVariableNames',false);
+%
+writetable(t1,fullxlsnam,'Sheet',shtnam1,'Range',['C', ...
+           int2str(irow+2)],'WriteVariableNames',false);
+writetable(t2,fullxlsnam,'Sheet',shtnam1,'Range',['D', ...
+           int2str(irow+2)],'WriteVariableNames',false);
+writetable(t3,fullxlsnam,'Sheet',shtnam1,'Range',['F' , ...
+           int2str(irow+3)],'WriteVariableNames',false);
+writetable(t4,fullxlsnam,'Sheet',shtnam1,'Range',['J', ...
+           int2str(irow+2)],'WriteVariableNames',false);
+%
+writetable(t5,fullxlsnam,'Sheet',shtnam1,'Range',['L', ...
+           int2str(irow+2)],'WriteVariableNames',false);
+writetable(t6,fullxlsnam,'Sheet',shtnam1,'Range',['P', ...
+           int2str(irow+3)],'WriteVariableNames',false);
+writetable(t7,fullxlsnam,'Sheet',shtnam1,'Range',['T', ...
+           int2str(irow+2)],'WriteVariableNames',false);
+writetable(t8,fullxlsnam,'Sheet',shtnam1,'Range',['T', ...
+           int2str(irow+3)],'WriteVariableNames',false);
 %
 return
