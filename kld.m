@@ -68,7 +68,7 @@ ddir = 'Data';
 % See press_cal3.xlsx
 %
 lbf2N = 4.448221615;    % N/lbf
-wt2psi = [0.0933  1.003];              % Coefficient and intercept
+wt2psi = [1 10.491904]./10.7133585;    % Coefficient and intercept
 %
 % Get Todays Date in DDMMMYYYY Format
 %
