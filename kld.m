@@ -42,6 +42,11 @@
 %
 %     09-Oct-2018 * Mack Gardner-Morse * New pressure calibration
 %
+%     07-Nov-2018 * Mack Gardner-Morse * Added plotting of tensioning
+%                                        loads in the unloaded (before
+%                                        applied pressure) state with a
+%                                        target of 15% body weight.
+%
 
 %#######################################################################
 %
@@ -81,7 +86,7 @@ if isempty(d)
   defs = {'','','1'};
   izero = true;
 else
-  [~,ids] = sort([d.datenum]');
+  [~,ids] = sort([d.datenum]);
   ids = ids(end);       % Index to newest MAT file 
   dnam = fullfile(ddir,d(ids).name);
   load(dnam,'id','wt','exam','zdat','zdata','ztime');
@@ -106,12 +111,13 @@ while ~ok
      nid = size(id,2);
      wt =  str2double(answ{2});
      exam =  str2double(answ{3});
-     if nid==2&&wt>25&&wt<=250&&(exam==1|exam==2)&&all(iltr)
+     if nid==2&&wt>25&&wt<=250&&(exam==1||exam==2)&&all(iltr)
        ok = true;
      end
 end
 %
 wth = wt*lbf2N/2;       % Half body weight in N
+wt10 = wth/5;           % 10% of body weight in N
 psi = polyval(wt2psi,wth);             % Target psi
 psis = sprintf('%4.1f',psi);
 %
@@ -129,7 +135,7 @@ else
   fnams = {d.name}';
   fnams = sort(fnams);
   fnam = fnams{end};
-  idext = findstr(fnam,['_' dtxt]);
+  idext = strfind(fnam,['_' dtxt]);
   fnum = fnam(19);
   n = str2double(fnum)+1;
 end
@@ -201,16 +207,52 @@ if izero
 %
 end
 %
+% Setup Figure for Unloaded (No Applied Pressure) Data
+%
+fhu = figure('Position',[1120 560 560 420]);
+tld = 0.15*wt;          % 15% of body weight
+ht = plot([0; 1],[tld; tld],'r-','Linewidth',1);      % Target load
+hold on;
+hd = plot([0; 1],[NaN; NaN],'b.','Linewidth',1,'MarkerSize',7);
+xlabel('Time (s)','FontSize',12,'FontWeight','bold');
+ylabel('Force (lbf)','FontSize',12,'FontWeight','bold');
+title('Axial Force','FontSize',16,'FontWeight','bold');
+hax = get(fhu,'CurrentAxes');
+%
 % Acquire Unloaded (No Applied Pressure) Data
 %
-h = msgbox({'       Click "OK" to Collect'; ...
-            '10 seconds of Unloaded Data'},'modal');
-ha = get(h,'CurrentAxes');
+hm = msgbox({'Please start tightening leg straps.'; ...
+            '       Press OK when finished.'},'Unloaded Data');
+ha = get(hm,'CurrentAxes');
 hc = get(ha,'Child');
 set(hc,'FontSize',8,'FontWeight','bold');
-uiwait(h);
 %
-[udata,utime] = startForeground(s1);
+utim = [];
+udat = [];
+%
+while isvalid(hm)
+     [udata,utime] = s1.inputSingleScan;
+     udat = [udat; udata];
+     ns = size(udat,1);
+     utim = [utim; utime];
+%
+     datu = udat-repmat(zdat,ns,1);    % Zero sensor
+     [~,~,~,~,m,s] = datevec(utim);
+     ut = 60*m+s;
+     ut = ut-repmat(ut(1),ns,1);       % Zero time
+%
+     ud = (cal*datu')'; % Scale data
+%
+     tend = ut(end);
+     if tend==0
+       tend = 0.001;
+     end
+     set(ht,'XData',[0; tend]);
+     set(hd,'XData',t,'YData',-ud(:,3)./4.44822);
+     set(hax,'Xlim',[0 tend]);
+     refresh(fhu);
+     drawnow;
+end
 %
 % Setup Trial Session
 %
@@ -259,7 +301,7 @@ fnam = ['subj' id '_exam' int2str(exam) '_trial' int2str(n) ...
 fnamd = fullfile(ddir,fnam);           % Put in subdirectory
 %
 save(fnamd,'cal','dtxt','exam','fdata','ftime','id','lbf2N','psi', ...
-     'psis','n','wt','wt2psi','wth','udata','utime','zdat','zdata', ...
-     'ztime');
+     'psis','n','wt','wt2psi','wth','ud','udat','ut','utim', ...
+     'zdat','zdata','ztime');
 %
 return
