@@ -248,7 +248,7 @@ while isvalid(hm)
        tend = 0.001;
      end
      set(ht,'XData',[0; tend]);
-     set(hd,'XData',t,'YData',-ud(:,3)./4.44822);
+     set(hd,'XData',ut,'YData',-ud(:,3)./4.44822);
      set(hax,'Xlim',[0 tend]);
      refresh(fhu);
      drawnow;
