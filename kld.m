@@ -47,6 +47,10 @@
 %                                        applied pressure) state with a
 %                                        target of 15% body weight.
 %
+%     28-Nov-2018 * Mack Gardner-Morse * Subject ID changed to a number.
+%                                        Zero loadcell after each
+%                                        examiner.
+%
 
 %#######################################################################
 %
@@ -84,37 +88,42 @@ dtxt = datestr(now,'ddmmmyyyy');
 d = dir(fullfile(ddir,['*_' dtxt '.mat']));
 if isempty(d)
   defs = {'','','1'};
-  izero = true;
 else
   [~,ids] = sort([d.datenum]);
   ids = ids(end);       % Index to newest MAT file 
   dnam = fullfile(ddir,d(ids).name);
-  load(dnam,'id','wt','exam','zdat','zdata','ztime');
+  load(dnam,'id','idstr','wt','exam','zdat','zdata','ztime');
   wt = sprintf('%5.1f',wt);
-  defs = {id,wt,int2str(exam)};
-  clear d dnam exam id ids wt;
-  izero = false;
+  defs = {idstr,wt,int2str(exam)};
+  clear d dnam ids wt;
 end
 %
 % Get Subject ID, Weight and Examiner
 %
 ttxt = 'Input';
-prmpt = {'Two Letter Subject ID', 'Subject Weight (lbs)', ...
+prmpt = {'Subject ID', 'Subject Weight (lbs)', ...
         'Examiner (1 or 2)'};
 % dims = [1 3; 1 25; 1 1];
 nlin = 1;
 ok = false;
 while ~ok
      answ = inputdlg(prmpt,ttxt,nlin,defs);
-     id = upper(answ{1});
-     iltr = isletter(id);
-     nid = size(id,2);
+     id = str2double(answ{1});
      wt =  str2double(answ{2});
      exam =  str2double(answ{3});
-     if nid==2&&wt>25&&wt<=250&&(exam==1||exam==2)&&all(iltr)
+     if ~isnan(id)&&id>0&&id<100&&wt>25&&wt<=250&&(exam==1||exam==2)
        ok = true;
      end
 end
+%
+% Get Subject ID as a String
+%
+idstr = int2str(id);
+if id<10
+  idstr = ['0' idstr];
+end
+%
+% Get Required Pressure Setting
 %
 wth = wt*lbf2N/2;       % Half body weight in N
 wt10 = wth/5;           % 10% of body weight in N
@@ -127,17 +136,19 @@ uiwait(msgbox({['Please set pressure to ' psis ' psi for']; ...
 %
 % Get Trial Number
 %
-d = dir(fullfile(ddir,['subj' id '_exam' int2str(exam) '_trial*_' ...
+d = dir(fullfile(ddir,['subj' idstr '_exam' int2str(exam) '_trial*_' ...
         dtxt '.mat']));
 if isempty(d)
   n = 1;
+  izero = true;
 else
   fnams = {d.name}';
   fnams = sort(fnams);
   fnam = fnams{end};
   idext = strfind(fnam,['_' dtxt]);
-  fnum = fnam(19);
+  fnum = fnam(19);      % Trial number must be less than ten (10)
   n = str2double(fnum)+1;
+  izero = false;
 end
 %
 % Load Loadcell Calibration Matrix
@@ -296,12 +307,12 @@ s1.stop;                % Be sure session has stopped
 %
 % Save Data
 %
-fnam = ['subj' id '_exam' int2str(exam) '_trial' int2str(n) ...
+fnam = ['subj' idstr '_exam' int2str(exam) '_trial' int2str(n) ...
         '_' dtxt '.mat'];
 fnamd = fullfile(ddir,fnam);           % Put in subdirectory
 %
-save(fnamd,'cal','dtxt','exam','fdata','ftime','id','lbf2N','psi', ...
-     'psis','n','wt','wt2psi','wth','ud','udat','ut','utim', ...
+save(fnamd,'cal','dtxt','exam','fdata','ftime','id','idstr','lbf2N', ...
+     'psi','psis','n','wt','wt2psi','wth','ud','udat','ut','utim', ...
      'zdat','zdata','ztime');
 %
 return
